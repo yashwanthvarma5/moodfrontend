@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMood } from "@/contexts/MoodContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MoodChart } from "@/components/mood/MoodChart";
@@ -11,11 +10,10 @@ import { format, isToday, isYesterday, startOfDay } from "date-fns";
 
 export const HistoryPage: React.FC = () => {
   const { moods, getMoodStats } = useMood();
-  const { currentTheme } = useTheme();
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"timeline" | "calendar" | "analytics">("timeline");
 
-  const stats = getMoodStats();
+  const stats = useMemo(() => getMoodStats(), [moods]);
 
   const getMoodsByDay = () => {
     const moodsByDay = moods.reduce((acc: Record<string, typeof moods>, mood) => {
@@ -39,10 +37,10 @@ export const HistoryPage: React.FC = () => {
     return format(date, "EEEE, MMMM d");
   };
 
-  const moodsByDay = getMoodsByDay();
+  const moodsByDay = useMemo(() => getMoodsByDay(), [moods]);
 
   return (
-    <div className={`min-h-screen p-4 ${currentTheme?.className || ''}`}>
+    <div className="min-h-screen p-4">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
