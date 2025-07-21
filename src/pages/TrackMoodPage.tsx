@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMood } from "@/contexts/MoodContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +19,7 @@ export const TrackMoodPage: React.FC = () => {
   const [note, setNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
+
   const {
     addMood,
     getTodaysMoods,
@@ -28,7 +28,6 @@ export const TrackMoodPage: React.FC = () => {
     canSubmitMood,
     getTimeUntilNextSubmission,
   } = useMood();
-  const { currentTheme } = useTheme();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -118,7 +117,7 @@ export const TrackMoodPage: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen p-4 ${currentTheme.className}`}>
+    <div className="min-h-screen p-4">
       <div className="max-w-2xl mx-auto">
         <Button
           variant="default"
