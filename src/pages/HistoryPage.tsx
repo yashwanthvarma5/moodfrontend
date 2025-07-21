@@ -42,7 +42,7 @@ export const HistoryPage: React.FC = () => {
   const moodsByDay = getMoodsByDay();
 
   return (
-    <div className={`min-h-screen p-4 ${currentTheme.className}`}>
+    <div className={`min-h-screen p-4 ${currentTheme?.className || ''}`}>
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
