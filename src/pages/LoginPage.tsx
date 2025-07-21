@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Heart, Loader2 } from "lucide-react";
-import { useTheme } from "@/contexts/ThemeContext";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -20,7 +19,6 @@ const loginSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>;
 
 export const LoginPage: React.FC = () => {
-  const { currentTheme } = useTheme();
   const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -55,9 +53,7 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div
-      className={`min-h-screen flex items-center justify-center px-4 ${currentTheme.className}`}
-    >
+    <div className="min-h-screen flex items-center justify-center px-4">
       <Card className="w-full max-w-md p-8 bg-white/60 backdrop-blur-sm border-purple-100">
         <div className="text-center mb-8">
           <div className="flex justify-center items-center space-x-2 mb-4">
