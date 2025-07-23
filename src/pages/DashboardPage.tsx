@@ -13,9 +13,9 @@ export const DashboardPage: React.FC = () => {
   const { currentTheme } = useTheme();
   const { getMoodStats, getTodaysMoods, getLatestMood, moods } = useMood();
 
-  const stats = getMoodStats();
-  const todaysMoods = getTodaysMoods();
-  const latestMood = getLatestMood();
+  const stats = useMemo(() => getMoodStats(), [moods]);
+  const todaysMoods = useMemo(() => getTodaysMoods(), [moods]);
+  const latestMood = useMemo(() => getLatestMood(), [moods]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -25,7 +25,7 @@ export const DashboardPage: React.FC = () => {
   };
 
   const recentMoods = useMemo(() => {
-    return moods
+    return [...moods]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 6);
   }, [moods]);
@@ -41,6 +41,28 @@ export const DashboardPage: React.FC = () => {
     if (diffHours < 24) return `${diffHours}h ago`;
     return 'Earlier';
   };
+
+  const renderMoodItem = (mood: typeof moods[0], index: number) => (
+    <div key={mood.id} className="flex items-center justify-between p-3 bg-white/40 rounded-lg">
+      <div className="flex items-center space-x-3">
+        <span className="text-2xl">{mood.emoji}</span>
+        <div>
+          <p className={`font-medium ${currentTheme.text}`}>{mood.mood}</p>
+          <p className={`text-sm ${currentTheme.textSecondary}`}>
+            {format(new Date(mood.date), 'h:mm a')}
+          </p>
+        </div>
+      </div>
+      {mood.note && (
+        <p className={`text-sm ${currentTheme.textSecondary} italic max-w-xs truncate`}>
+          "{mood.note}"
+        </p>
+      )}
+      {index === 0 && (
+        <div className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">Latest</div>
+      )}
+    </div>
+  );
 
   return (
     <div className={`min-h-screen ${currentTheme.background} p-4`}>
@@ -111,39 +133,17 @@ export const DashboardPage: React.FC = () => {
           </Link>
         </div>
 
-        {/* Today's Moods */}
+        {/* Today's Mood Journey */}
         {todaysMoods.length > 0 && (
           <Card className={`p-6 ${currentTheme.surface} ${currentTheme.border} mb-8`}>
             <h3 className={`text-lg font-semibold ${currentTheme.text} mb-4`}>Today's Mood Journey</h3>
             <div className="space-y-3">
-              {todaysMoods.slice(0, 5).map((mood, index) => (
-                <div key={mood.id} className="flex items-center justify-between p-3 bg-white/40 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-2xl">{mood.emoji}</span>
-                    <div>
-                      <p className={`font-medium ${currentTheme.text}`}>{mood.mood}</p>
-                      <p className={`text-sm ${currentTheme.textSecondary}`}>
-                        {format(new Date(mood.date), 'h:mm a')}
-                      </p>
-                    </div>
-                  </div>
-                  {mood.note && (
-                    <p className={`text-sm ${currentTheme.textSecondary} italic max-w-xs truncate`}>
-                      "{mood.note}"
-                    </p>
-                  )}
-                  {index === 0 && (
-                    <div className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
-                      Latest
-                    </div>
-                  )}
-                </div>
-              ))}
+              {todaysMoods.slice(0, 5).map(renderMoodItem)}
             </div>
           </Card>
         )}
 
-        {/* Stats Grid */}
+        {/* Recent Activity & Streak */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <MoodStreakCard stats={stats} />
           <Card className={`p-6 ${currentTheme.surface} ${currentTheme.border}`}>
@@ -156,19 +156,7 @@ export const DashboardPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-3 max-h-64 overflow-y-auto">
-                {recentMoods.map((mood) => (
-                  <div key={mood.id} className="flex items-center justify-between p-3 bg-white/40 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-xl">{mood.emoji}</span>
-                      <div>
-                        <p className={`font-medium ${currentTheme.text} text-sm`}>{mood.mood}</p>
-                        <p className={`text-xs ${currentTheme.textSecondary}`}>
-                          {format(new Date(mood.date), 'MMM d, h:mm a')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                {recentMoods.map(renderMoodItem)}
               </div>
             )}
           </Card>
@@ -196,7 +184,7 @@ export const DashboardPage: React.FC = () => {
           </Card>
         </div>
 
-        {/* Motivational Section */}
+        {/* Motivation Section */}
         <Card className={`p-6 bg-gradient-to-r ${currentTheme.primary} text-white`}>
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">You're doing amazing! 🌟</h3>
