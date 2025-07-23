@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { MoodEntry, MoodStats } from '@/types'; // ⬅️ Removed unused `MOODS`
+import { MoodEntry, MoodStats } from '@/types';
 import { useAuth } from './AuthContext';
-import { isSameDay, startOfDay } from 'date-fns'; // ⬅️ Removed unused `endOfDay`
+import { isSameDay, startOfDay } from 'date-fns';
+import API from '@/utils/api';
 
 interface MoodContextType {
   moods: MoodEntry[];
@@ -18,9 +19,7 @@ const MoodContext = createContext<MoodContextType | undefined>(undefined);
 
 export const useMood = () => {
   const context = useContext(MoodContext);
-  if (!context) {
-    throw new Error('useMood must be used within a MoodProvider');
-  }
+  if (!context) throw new Error('useMood must be used within a MoodProvider');
   return context;
 };
 
@@ -29,77 +28,77 @@ export const MoodProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
-  useEffect(() => {
-    if (user) {
-      const savedMoods = localStorage.getItem('vibetrackr-moods');
-      if (savedMoods) {
-        const parsedMoods = JSON.parse(savedMoods).map((mood: any) => ({
-          ...mood,
-          date: new Date(mood.date),
-          createdAt: new Date(mood.createdAt)
-        }));
-        setMoods(parsedMoods);
-      }
+  // Fetch moods from backend and cache locally
+  const fetchMoodsFromBackend = async () => {
+    if (!user) return;
+
+    try {
+      const res = await API.get('/moods');
+      const moodsFromBackend = res.data.map((mood: any) => ({
+        ...mood,
+        date: new Date(mood.date),
+        createdAt: new Date(mood.createdAt)
+      }));
+      setMoods(moodsFromBackend);
+      localStorage.setItem('vibetrackr-moods', JSON.stringify(moodsFromBackend));
+    } catch (err) {
+      console.error('Failed to fetch moods from backend', err);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchMoodsFromBackend();
   }, [user]);
 
   const canSubmitMood = () => {
-    if (moods.length === 0) return true;
-
     const latestMood = getLatestMood();
     if (!latestMood) return true;
 
     const now = new Date();
     const lastMoodTime = new Date(latestMood.date);
     const timeDifference = now.getTime() - lastMoodTime.getTime();
-    const oneMinuteInMs = 60 * 1000;
-
-    return timeDifference >= oneMinuteInMs;
+    return timeDifference >= 60 * 1000; // 1 min cooldown
   };
 
   const getTimeUntilNextSubmission = () => {
     if (canSubmitMood()) return 0;
-
     const latestMood = getLatestMood();
-    if (!latestMood) return 0;
-
     const now = new Date();
-    const lastMoodTime = new Date(latestMood.date);
-    const timeDifference = now.getTime() - lastMoodTime.getTime();
-    const oneMinuteInMs = 60 * 1000;
-
-    return Math.ceil((oneMinuteInMs - timeDifference) / 1000);
+    const last = new Date(latestMood!.date);
+    return Math.ceil((60 * 1000 - (now.getTime() - last.getTime())) / 1000);
   };
 
   const addMood = async (emoji: string, mood: string, note?: string): Promise<boolean> => {
     if (!user || !canSubmitMood()) return false;
 
-    const newMood: MoodEntry = {
-      id: Date.now().toString(),
-      userId: user.id,
-      emoji,
-      mood,
-      note,
-      date: new Date(),
-      createdAt: new Date()
-    };
+    try {
+      const res = await API.post('/moods', { emoji, mood, note });
+      const newMood = {
+        ...res.data,
+        date: new Date(res.data.date),
+        createdAt: new Date(res.data.createdAt)
+      };
 
-    const updatedMoods = [...moods, newMood];
-    setMoods(updatedMoods);
-    localStorage.setItem('vibetrackr-moods', JSON.stringify(updatedMoods));
-    return true;
+      const updatedMoods = [...moods, newMood];
+      setMoods(updatedMoods);
+      localStorage.setItem('vibetrackr-moods', JSON.stringify(updatedMoods));
+      return true;
+    } catch (err) {
+      console.error('Error saving mood:', err);
+      return false;
+    }
   };
 
-  const getTodaysMoods = () => {
-    const today = new Date();
-    return moods.filter(mood => isSameDay(new Date(mood.date), today))
+  const getTodaysMoods = () =>
+    moods
+      .filter((mood) => isSameDay(new Date(mood.date), new Date()))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  };
 
   const getLatestMood = () => {
     if (moods.length === 0) return null;
-    return moods.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    return [...moods].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
   };
 
   const getMoodStats = (): MoodStats => {
@@ -117,21 +116,16 @@ export const MoodProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const moodsByDay = moods.reduce((acc, mood) => {
       const dayKey = startOfDay(new Date(mood.date)).toISOString();
-      if (!acc[dayKey]) {
-        acc[dayKey] = [];
-      }
+      if (!acc[dayKey]) acc[dayKey] = [];
       acc[dayKey].push(mood);
       return acc;
     }, {} as Record<string, MoodEntry[]>);
 
     const daysWithMoods = Object.keys(moodsByDay).sort();
-
-    let currentStreak = 0;
-    let longestStreak = 0;
-    let tempStreak = 0;
+    let currentStreak = 0, longestStreak = 0, tempStreak = 0;
 
     const today = startOfDay(new Date()).toISOString();
-    const yesterday = startOfDay(new Date(Date.now() - 24 * 60 * 60 * 1000)).toISOString();
+    const yesterday = startOfDay(new Date(Date.now() - 86400000)).toISOString();
 
     if (moodsByDay[today] || moodsByDay[yesterday]) {
       currentStreak = 1;
@@ -141,8 +135,7 @@ export const MoodProvider: React.FC<{ children: React.ReactNode }> = ({ children
     for (let i = daysWithMoods.length - 1; i > 0; i--) {
       const currentDay = new Date(daysWithMoods[i]);
       const previousDay = new Date(daysWithMoods[i - 1]);
-      const diffTime = currentDay.getTime() - previousDay.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = Math.ceil((currentDay.getTime() - previousDay.getTime()) / 86400000);
 
       if (diffDays === 1) {
         tempStreak++;
@@ -156,15 +149,12 @@ export const MoodProvider: React.FC<{ children: React.ReactNode }> = ({ children
     longestStreak = Math.max(longestStreak, tempStreak);
 
     const moodDistribution: Record<string, number> = {};
-    moods.forEach(mood => {
-      moodDistribution[mood.mood] = (moodDistribution[mood.mood] || 0) + 1;
+    moods.forEach((m) => {
+      moodDistribution[m.mood] = (moodDistribution[m.mood] || 0) + 1;
     });
 
-    const mostCommonMood = Object.entries(moodDistribution)
-      .sort(([, a], [, b]) => b - a)[0]?.[0] || '';
-
-    const todayEntries = getTodaysMoods().length;
-    const averageEntriesPerDay = daysWithMoods.length > 0 ? moods.length / daysWithMoods.length : 0;
+    const mostCommonMood =
+      Object.entries(moodDistribution).sort(([, a], [, b]) => b - a)[0]?.[0] || '';
 
     return {
       currentStreak,
@@ -172,8 +162,8 @@ export const MoodProvider: React.FC<{ children: React.ReactNode }> = ({ children
       totalEntries: moods.length,
       mostCommonMood,
       moodDistribution,
-      todayEntries,
-      averageEntriesPerDay: Math.round(averageEntriesPerDay * 10) / 10
+      todayEntries: getTodaysMoods().length,
+      averageEntriesPerDay: Math.round((moods.length / daysWithMoods.length) * 10) / 10
     };
   };
 
