@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
-import API from "../utils/API"; // ✅ Using central Axios instance
+import API from "../utils/api"; // ✅ Centralized Axios instance
 
 interface AuthContextType {
   user: User | null;
@@ -20,9 +20,7 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -35,17 +33,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const res = await API.post("/auth/login", {
-        email,
-        password,
-      });
-
+      const res = await API.post("/auth/login", { email, password });
       const { token, user: backendUser } = res.data;
-
       localStorage.setItem("token", token);
       localStorage.setItem("vibetrackr-user", JSON.stringify(backendUser));
       setUser(backendUser);
     } catch (error) {
+      console.error("Login error:", error);
       throw new Error("Login failed");
     } finally {
       setIsLoading(false);
@@ -61,13 +55,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         password,
         confirmPassword: password,
       });
-
       const { token, user: backendUser } = res.data;
-
       localStorage.setItem("token", token);
       localStorage.setItem("vibetrackr-user", JSON.stringify(backendUser));
       setUser(backendUser);
     } catch (error) {
+      console.error("Signup error:", error);
       throw new Error("Signup failed");
     } finally {
       setIsLoading(false);
