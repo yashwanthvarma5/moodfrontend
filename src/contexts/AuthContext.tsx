@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
-import axios from "axios";
+import API from "../utils/API"; // ✅ Using central Axios instance
 
 interface AuthContextType {
   user: User | null;
@@ -35,7 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/login", {
+      const res = await API.post("/auth/login", {
         email,
         password,
       });
@@ -55,11 +55,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const signup = async (username: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/register", {
+      const res = await API.post("/auth/register", {
         username,
         email,
         password,
-        confirmPassword: password, // backend expects this
+        confirmPassword: password,
       });
 
       const { token, user: backendUser } = res.data;
